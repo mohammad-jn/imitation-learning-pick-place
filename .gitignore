@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+.vscode/
+data/raw/
+data/processed/
+checkpoints/
+logs/
+wandb/
