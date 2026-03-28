@@ -1,0 +1,14 @@
+name: pickplace
+channels:
+  - defaults
+dependencies:
+  - matplotlib
+  - numpy
+  - python=3.10
+  - tqdm
+  - pyyaml
+  - pybullet
+  - pip
+  - pip:
+      - torch==2.2.2
+

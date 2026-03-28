@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Tuple, Any
+from typing import Dict, Tuple, Any, List
 
 import pybullet as p
 import pybullet_data
@@ -12,10 +12,13 @@ class PickPlaceConfig:
     gui: bool = True
     gravity: float = -9.8
     time_step: float = 1.0 / 240.0
+
     cube_start_pos: Tuple[float, float, float] = (0.6, 0.0, 0.02)
     cube_start_orn: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0)
+
     robot_start_pos: Tuple[float, float, float] = (0.0, 0.0, 0.0)
     robot_start_orn: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0)
+
     target_pos: Tuple[float, float, float] = (0.5, -0.25, 0.02)
 
 
@@ -28,12 +31,7 @@ class PickPlaceEnv:
     - loading plane, robot, and cube
     - resetting the scene
     - returning a simple state observation
-
-    Later we will add:
-    - action stepping
-    - inverse kinematics
-    - gripper control
-    - success checks
+    - moving the robot end effector with inverse kinematics
     """
 
     def __init__(self, config: PickPlaceConfig | None = None) -> None:
@@ -44,14 +42,13 @@ class PickPlaceEnv:
         self.robot_id: int | None = None
         self.cube_id: int | None = None
 
-        # Franka Panda end-effector link index is commonly 11 in PyBullet URDF usage.
-        # We can verify this later by printing all joints.
         self.ee_link_index: int = 11
+        self.arm_joint_indices: List[int] = [0, 1, 2, 3, 4, 5, 6]
+        self.gripper_joint_indices: List[int] = [9, 10]
 
         self._connect()
 
     def _connect(self) -> None:
-        """Connect to PyBullet if not already connected."""
         if self.client_id is not None:
             return
 
@@ -63,7 +60,6 @@ class PickPlaceEnv:
         p.setTimeStep(self.config.time_step)
 
     def reset(self) -> Dict[str, Any]:
-        """Reset the full scene and return the initial observation."""
         self._ensure_connected()
 
         p.resetSimulation()
@@ -87,14 +83,35 @@ class PickPlaceEnv:
             useFixedBase=False,
         )
 
-        # Let the simulation settle slightly.
-        for _ in range(20):
+        self._reset_robot_joints()
+
+        for _ in range(50):
             p.stepSimulation()
 
         return self.get_observation()
 
+    def _reset_robot_joints(self) -> None:
+        """Set the Panda arm to a reasonable initial pose."""
+        self._ensure_scene_loaded()
+
+        initial_joint_positions = [
+            0.0,
+            -0.785,
+            0.0,
+            -2.356,
+            0.0,
+            1.571,
+            0.785,
+        ]
+
+        for joint_index, joint_value in zip(self.arm_joint_indices, initial_joint_positions):
+            p.resetJointState(self.robot_id, joint_index, joint_value)
+
+        # Open gripper
+        for joint_index in self.gripper_joint_indices:
+            p.resetJointState(self.robot_id, joint_index, 0.04)
+
     def get_observation(self) -> Dict[str, Any]:
-        """Return a simple low-dimensional observation."""
         self._ensure_scene_loaded()
 
         ee_state = p.getLinkState(self.robot_id, self.ee_link_index)
@@ -111,14 +128,83 @@ class PickPlaceEnv:
         return obs
 
     def step_simulation(self, num_steps: int = 1) -> None:
-        """Advance simulation without applying actions yet."""
         self._ensure_connected()
 
         for _ in range(num_steps):
             p.stepSimulation()
 
+    def move_ee(
+        self,
+        target_pos: Tuple[float, float, float],
+        num_steps: int = 120,
+    ) -> None:
+        """
+        Move the end effector toward a target position using inverse kinematics.
+        """
+        self._ensure_scene_loaded()
+
+        # Keep the gripper pointing downward in a simple fixed orientation.
+        target_orn = p.getQuaternionFromEuler([3.14159, 0.0, 0.0])
+
+        joint_targets = p.calculateInverseKinematics(
+            self.robot_id,
+            self.ee_link_index,
+            target_pos,
+            targetOrientation=target_orn,
+        )
+
+        for _ in range(num_steps):
+            for i, joint_index in enumerate(self.arm_joint_indices):
+                p.setJointMotorControl2(
+                    bodyUniqueId=self.robot_id,
+                    jointIndex=joint_index,
+                    controlMode=p.POSITION_CONTROL,
+                    targetPosition=joint_targets[i],
+                    force=200.0,
+                )
+
+            p.stepSimulation()
+
+    def open_gripper(self, num_steps: int = 120) -> None:
+        """
+        Open the Panda gripper.
+        """
+        self._ensure_scene_loaded()
+
+        target_opening = 0.04
+
+        for _ in range(num_steps):
+            for joint_index in self.gripper_joint_indices:
+                p.setJointMotorControl2(
+                    bodyUniqueId=self.robot_id,
+                    jointIndex=joint_index,
+                    controlMode=p.POSITION_CONTROL,
+                    targetPosition=target_opening,
+                    force=50.0,
+                )
+            p.stepSimulation()
+
+    def close_gripper(self, num_steps: int = 120) -> None:
+        """
+        Close the Panda gripper.
+        """
+        self._ensure_scene_loaded()
+
+        target_opening = 0.0
+
+        for _ in range(num_steps):
+            for joint_index in self.gripper_joint_indices:
+                p.setJointMotorControl2(
+                    bodyUniqueId=self.robot_id,
+                    jointIndex=joint_index,
+                    controlMode=p.POSITION_CONTROL,
+                    targetPosition=target_opening,
+                    force=50.0,
+                )
+            p.stepSimulation()
+
+
     def print_joint_info(self) -> None:
-        """Print robot joint metadata for inspection/debugging."""
         self._ensure_scene_loaded()
 
         num_joints = p.getNumJoints(self.robot_id)
@@ -138,7 +224,6 @@ class PickPlaceEnv:
             )
 
     def close(self) -> None:
-        """Disconnect from PyBullet."""
         if self.client_id is not None:
             p.disconnect(self.client_id)
             self.client_id = None
