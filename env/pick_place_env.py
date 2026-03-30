@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Dict, Tuple, Any, List
+import random
 
 import pybullet as p
 import pybullet_data
@@ -23,17 +24,6 @@ class PickPlaceConfig:
 
 
 class PickPlaceEnv:
-    """
-    Minimal PyBullet environment for a simulated pick-and-place task.
-
-    Current version supports:
-    - connecting to PyBullet
-    - loading plane, robot, and cube
-    - resetting the scene
-    - returning a simple state observation
-    - moving the robot end effector with inverse kinematics
-    """
-
     def __init__(self, config: PickPlaceConfig | None = None) -> None:
         self.config = config or PickPlaceConfig()
 
@@ -41,12 +31,23 @@ class PickPlaceEnv:
         self.plane_id: int | None = None
         self.robot_id: int | None = None
         self.cube_id: int | None = None
+        self.current_cube_start_pos: Tuple[float, float, float] | None = None
 
         self.ee_link_index: int = 11
         self.arm_joint_indices: List[int] = [0, 1, 2, 3, 4, 5, 6]
         self.gripper_joint_indices: List[int] = [9, 10]
 
         self._connect()
+
+
+    def _sample_cube_position(self) -> Tuple[float, float, float]:
+        """
+        Sample a random cube position for a new episode.
+        """
+        cube_x = random.uniform(0.55, 0.65)
+        cube_y = random.uniform(-0.05, 0.05)
+        return (cube_x, cube_y, 0.02)
+    
 
     def _connect(self) -> None:
         if self.client_id is not None:
@@ -67,6 +68,8 @@ class PickPlaceEnv:
         p.setGravity(0, 0, self.config.gravity)
         p.setTimeStep(self.config.time_step)
 
+        cube_start_pos = self._sample_cube_position()
+
         self.plane_id = p.loadURDF("plane.urdf")
 
         self.robot_id = p.loadURDF(
@@ -78,10 +81,12 @@ class PickPlaceEnv:
 
         self.cube_id = p.loadURDF(
             "cube_small.urdf",
-            basePosition=self.config.cube_start_pos,
+            basePosition=cube_start_pos,
             baseOrientation=self.config.cube_start_orn,
             useFixedBase=False,
         )
+
+        self.current_cube_start_pos = cube_start_pos
 
         self._reset_robot_joints()
 
@@ -91,7 +96,6 @@ class PickPlaceEnv:
         return self.get_observation()
 
     def _reset_robot_joints(self) -> None:
-        """Set the Panda arm to a reasonable initial pose."""
         self._ensure_scene_loaded()
 
         initial_joint_positions = [
@@ -107,7 +111,6 @@ class PickPlaceEnv:
         for joint_index, joint_value in zip(self.arm_joint_indices, initial_joint_positions):
             p.resetJointState(self.robot_id, joint_index, joint_value)
 
-        # Open gripper
         for joint_index in self.gripper_joint_indices:
             p.resetJointState(self.robot_id, joint_index, 0.04)
 
@@ -138,12 +141,8 @@ class PickPlaceEnv:
         target_pos: Tuple[float, float, float],
         num_steps: int = 120,
     ) -> None:
-        """
-        Move the end effector toward a target position using inverse kinematics.
-        """
         self._ensure_scene_loaded()
 
-        # Keep the gripper pointing downward in a simple fixed orientation.
         target_orn = p.getQuaternionFromEuler([3.14159, 0.0, 0.0])
 
         joint_targets = p.calculateInverseKinematics(
@@ -166,9 +165,6 @@ class PickPlaceEnv:
             p.stepSimulation()
 
     def open_gripper(self, num_steps: int = 120) -> None:
-        """
-        Open the Panda gripper.
-        """
         self._ensure_scene_loaded()
 
         target_opening = 0.04
@@ -185,9 +181,6 @@ class PickPlaceEnv:
             p.stepSimulation()
 
     def close_gripper(self, num_steps: int = 120) -> None:
-        """
-        Close the Panda gripper.
-        """
         self._ensure_scene_loaded()
 
         target_opening = 0.0
@@ -203,6 +196,54 @@ class PickPlaceEnv:
                 )
             p.stepSimulation()
 
+    def apply_action(
+        self,
+        target_ee_pos: Tuple[float, float, float],
+        gripper_open: float,
+        num_steps: int = 30,
+    ) -> Dict[str, Any]:
+        """
+        Apply one low-level action:
+        - move end effector toward target_ee_pos
+        - set gripper to open (1.0) or closed (0.0)
+
+        Returns the next observation.
+        """
+        self._ensure_scene_loaded()
+
+        target_orn = p.getQuaternionFromEuler([3.14159, 0.0, 0.0])
+
+        joint_targets = p.calculateInverseKinematics(
+            self.robot_id,
+            self.ee_link_index,
+            target_ee_pos,
+            targetOrientation=target_orn,
+        )
+
+        gripper_target = 0.04 if gripper_open >= 0.5 else 0.0
+
+        for _ in range(num_steps):
+            for i, joint_index in enumerate(self.arm_joint_indices):
+                p.setJointMotorControl2(
+                    bodyUniqueId=self.robot_id,
+                    jointIndex=joint_index,
+                    controlMode=p.POSITION_CONTROL,
+                    targetPosition=joint_targets[i],
+                    force=200.0,
+                )
+
+            for joint_index in self.gripper_joint_indices:
+                p.setJointMotorControl2(
+                    bodyUniqueId=self.robot_id,
+                    jointIndex=joint_index,
+                    controlMode=p.POSITION_CONTROL,
+                    targetPosition=gripper_target,
+                    force=50.0,
+                )
+
+            p.stepSimulation()
+
+        return self.get_observation()
 
     def print_joint_info(self) -> None:
         self._ensure_scene_loaded()

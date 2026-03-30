@@ -9,3 +9,6 @@ data/processed/
 checkpoints/
 logs/
 wandb/
+data/
+*.pkl
+*.json
