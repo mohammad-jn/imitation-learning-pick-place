@@ -63,7 +63,7 @@ def collect_one_episode(env: PickPlaceEnv) -> List[Dict[str, Any]]:
     target_pos = obs["target_pos"]
 
     above_cube = (cube_pos[0], cube_pos[1], cube_pos[2] + 0.2)
-    grasp_pos = (cube_pos[0], cube_pos[1], cube_pos[2] + 0.02)
+    grasp_pos = (cube_pos[0], cube_pos[1], cube_pos[2] + 0.005)
     lift_pos = (cube_pos[0], cube_pos[1], cube_pos[2] + 0.3)
     above_target = (target_pos[0], target_pos[1], target_pos[2] + 0.3)
     place_pos = (target_pos[0], target_pos[1], target_pos[2] + 0.02)
@@ -76,6 +76,9 @@ def collect_one_episode(env: PickPlaceEnv) -> List[Dict[str, Any]]:
     collect_segment(env, dataset, grasp_pos, gripper_open=1.0, phase=1, steps=10)
 
     # phase 2: close gripper
+    collect_segment(env, dataset, grasp_pos, gripper_open=0.0, phase=2, steps=10)
+
+    # phase 2: hold closed briefly before lift
     collect_segment(env, dataset, grasp_pos, gripper_open=0.0, phase=2, steps=5)
 
     # phase 3: lift

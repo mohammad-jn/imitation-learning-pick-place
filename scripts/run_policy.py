@@ -71,7 +71,7 @@ def main() -> None:
 
             target_ee_pos = (
                 max(0.35, min(0.75, ee_pos[0] + dx)),
-                max(-0.20, min(0.20, ee_pos[1] + dy)),
+                max(-0.35, min(0.20, ee_pos[1] + dy)),
                 max(0.03, min(0.40, ee_pos[2] + dz)),
             )
 
