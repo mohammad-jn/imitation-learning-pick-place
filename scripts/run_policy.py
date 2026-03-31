@@ -92,6 +92,9 @@ def main() -> None:
             )
 
             time.sleep(0.03)
+        success_info = env.get_success_info()
+        print("\nSuccess info:")
+        print(success_info)
 
         print("Holding simulation for 10 seconds...")
         for _ in range(10 * 240):

@@ -277,3 +277,46 @@ class PickPlaceEnv:
         self._ensure_connected()
         if self.robot_id is None or self.cube_id is None:
             raise RuntimeError("Scene not loaded. Call reset() first.")
+
+    def is_success(
+        self,
+        pos_tolerance: float = 0.05,
+        max_cube_height: float = 0.06,
+    ) -> bool:
+        """
+        Return True if the cube is close enough to the target position and has
+        been placed down near the table.
+        """
+        self._ensure_scene_loaded()
+
+        cube_pos, _ = p.getBasePositionAndOrientation(self.cube_id)
+        target_pos = self.get_observation()["target_pos"]
+
+        close_in_xy = (
+            abs(cube_pos[0] - target_pos[0]) < pos_tolerance
+            and abs(cube_pos[1] - target_pos[1]) < pos_tolerance
+        )
+        placed_low = cube_pos[2] < max_cube_height
+
+        return close_in_xy and placed_low
+    
+    
+    def get_success_info(self) -> Dict[str, Any]:
+        """
+        Return useful information for checking task completion.
+        """
+        self._ensure_scene_loaded()
+
+        cube_pos, _ = p.getBasePositionAndOrientation(self.cube_id)
+        target_pos = self.get_observation()["target_pos"]
+
+        return {
+            "cube_pos": cube_pos,
+            "target_pos": target_pos,
+            "xy_error": (
+                abs(cube_pos[0] - target_pos[0]),
+                abs(cube_pos[1] - target_pos[1]),
+            ),
+            "cube_height": cube_pos[2],
+            "success": self.is_success(),
+        }
