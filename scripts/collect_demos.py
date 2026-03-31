@@ -98,7 +98,7 @@ def main() -> None:
 
     all_demos: List[Dict[str, Any]] = []
 
-    num_episodes = 20
+    num_episodes = 200
 
     try:
         for episode_idx in range(num_episodes):
@@ -109,7 +109,7 @@ def main() -> None:
     finally:
         env.close()
 
-    output_path = os.path.join(output_dir, "demos.pkl")
+    output_path = os.path.join(output_dir, "demos_200eps.pkl")
     with open(output_path, "wb") as f:
         pickle.dump(all_demos, f)
 

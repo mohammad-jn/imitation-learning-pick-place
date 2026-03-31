@@ -11,7 +11,7 @@ from models.bc_policy import BCPolicy
 
 
 def main() -> None:
-    data_path = "data/demos.pkl"
+    data_path = "data/demos_200eps.pkl"
     batch_size = 32
     learning_rate = 1e-3
     num_epochs = 30
