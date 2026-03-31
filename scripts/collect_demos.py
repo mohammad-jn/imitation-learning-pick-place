@@ -62,29 +62,30 @@ def collect_one_episode(env: PickPlaceEnv) -> List[Dict[str, Any]]:
     place_pos = (target_pos[0], target_pos[1], target_pos[2] + 0.02)
     retreat_pos = (target_pos[0], target_pos[1], target_pos[2] + 0.3)
 
+    steps_multiplier = 3
     # move above cube with open gripper
-    collect_segment(env, dataset, above_cube, gripper_open=1.0, steps=6)
+    collect_segment(env, dataset, above_cube, gripper_open=1.0, steps=6 * steps_multiplier)
 
     # move down to grasp
-    collect_segment(env, dataset, grasp_pos, gripper_open=1.0, steps=6)
+    collect_segment(env, dataset, grasp_pos, gripper_open=1.0, steps=6 * steps_multiplier)
 
     # close gripper while staying at grasp position
-    collect_segment(env, dataset, grasp_pos, gripper_open=0.0, steps=4)
+    collect_segment(env, dataset, grasp_pos, gripper_open=0.0, steps=4 * steps_multiplier)
 
     # lift
-    collect_segment(env, dataset, lift_pos, gripper_open=0.0, steps=6)
+    collect_segment(env, dataset, lift_pos, gripper_open=0.0, steps=6 * steps_multiplier)
 
     # move above target
-    collect_segment(env, dataset, above_target, gripper_open=0.0, steps=6)
+    collect_segment(env, dataset, above_target, gripper_open=0.0, steps=6 * steps_multiplier)
 
     # lower to place
-    collect_segment(env, dataset, place_pos, gripper_open=0.0, steps=6)
+    collect_segment(env, dataset, place_pos, gripper_open=0.0, steps=6 * steps_multiplier)
 
     # open gripper
-    collect_segment(env, dataset, place_pos, gripper_open=1.0, steps=4)
+    collect_segment(env, dataset, place_pos, gripper_open=1.0, steps=4 * steps_multiplier)
 
     # retreat
-    collect_segment(env, dataset, retreat_pos, gripper_open=1.0, steps=6)
+    collect_segment(env, dataset, retreat_pos, gripper_open=1.0, steps=6 * steps_multiplier)
 
     return dataset
 
@@ -98,7 +99,7 @@ def main() -> None:
 
     all_demos: List[Dict[str, Any]] = []
 
-    num_episodes = 200
+    num_episodes = 100
 
     try:
         for episode_idx in range(num_episodes):
