@@ -22,6 +22,7 @@ python -m scripts.run_policy
 
 # evaluate performance
 python -m scripts.evaluate_policy
+```
 
 ## 🧠 What This Project Does
 
