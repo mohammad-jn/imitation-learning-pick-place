@@ -1,80 +1,81 @@
-# Imitation Learning for Simulated Robotic Pick-and-Place
+# 🤖 Imitation Learning for Robotic Pick-and-Place
 
-A robotics and machine learning project that trains a simulated robot arm to pick up a cube and place it at a target location using **behavior cloning** in **PyBullet**.
-
-## Project Overview
-
-This project builds an end-to-end imitation learning pipeline for a robotic pick-and-place task in simulation.
-
-The system includes:
-
-- a PyBullet-based robotic manipulation environment
-- a scripted expert policy that solves the task
-- demonstration collection from the expert
-- a PyTorch behavior cloning model
-- rollout and evaluation of the learned policy
-
-The robot used in simulation is the **Franka Panda** arm with a gripper. The task is to:
-
-1. move above the cube
-2. descend to the cube
-3. close the gripper
-4. lift the cube
-5. move to the target location
-6. place the cube
-7. open the gripper
-8. retreat
+Train a simulated robot arm to pick and place objects using **behavior cloning** in PyBullet.
 
 ---
 
-## Why this project
+## 🚀 Quick Start
 
-This project was designed to demonstrate skills relevant to machine learning engineering for robotics, including:
+```bash
+# create environment
+conda env create -f environment.yml
+conda activate pickplace
 
-- simulation-based robotics development
-- inverse kinematics control
-- demonstration collection
-- behavior cloning
-- evaluation of learned policies
-- clean ML pipeline design
+# collect expert data
+python -m scripts.collect_demos
+
+# train policy
+python -m training.train_bc
+
+# run learned policy (GUI)
+python -m scripts.run_policy
+
+# evaluate performance
+python -m scripts.evaluate_policy
+
+## 🧠 What This Project Does
+
+A robot learns to:
+
+- pick up a cube 🟥  
+- move it across the table  
+- place it at a target 🎯  
+
+All learned from expert demonstrations — no reinforcement learning.
 
 ---
 
-## Tech Stack
+## 🏗️ Environment
 
-- Python
-- PyBullet
-- PyTorch
-- NumPy
-- Matplotlib
-- Conda
+Built with **PyBullet**, containing:
+
+- 🤖 Franka Panda robot arm  
+- 🟥 cube object  
+- 🎯 target position  
+- flat table (plane)
+
+### Observations
+
+- end-effector position  
+- cube position  
+- target position  
+- task phase  
 
 ---
 
-## Project Structure
+## 🧩 Model
 
-```text
-imitation-learning-pick-place/
-├── env/
-│   ├── __init__.py
-│   └── pick_place_env.py
-├── scripts/
-│   ├── test_env_class.py
-│   ├── test_ik_control.py
-│   ├── test_gripper_control.py
-│   ├── expert_pick_place.py
-│   ├── collect_demos.py
-│   ├── run_policy.py
-│   └── evaluate_policy.py
-├── data/
-│   ├── __init__.py
-│   └── dataset.py
-├── models/
-│   ├── __init__.py
-│   └── bc_policy.py
-├── training/
-│   ├── __init__.py
-│   └── train_bc.py
-├── environment.yml
-├── .gitignore
-└── README.md
+A simple **MLP (PyTorch)**:
+
+### Input (10D)
+
+- ee_pos (3)  
+- cube_pos (3)  
+- target_pos (3)  
+- phase (1)
+
+### Output (4D)
+
+- dx, dy, dz  
+- gripper_open  
+
+---
+
+## 📊 Results
+
+Evaluation over **20 episodes**:
+
+- ✅ Success rate: **100%**
+- 📍 Mean position error:
+  - x: **0.0066**
+  - y: **0.0131**
