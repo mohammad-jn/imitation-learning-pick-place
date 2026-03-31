@@ -5,7 +5,7 @@ import torch.nn as nn
 
 
 class BCPolicy(nn.Module):
-    def __init__(self, input_dim: int = 9, hidden_dim: int = 128, output_dim: int = 4) -> None:
+    def __init__(self, input_dim: int = 10, hidden_dim: int = 128, output_dim: int = 4) -> None:
         super().__init__()
 
         self.net = nn.Sequential(
