@@ -12,6 +12,14 @@ def make_step_record(
     target_ee_pos: Tuple[float, float, float],
     gripper_open: float,
 ) -> Dict[str, Any]:
+    ee_pos = obs["ee_pos"]
+
+    delta_ee = (
+        target_ee_pos[0] - ee_pos[0],
+        target_ee_pos[1] - ee_pos[1],
+        target_ee_pos[2] - ee_pos[2],
+    )
+
     return {
         "obs": {
             "ee_pos": tuple(obs["ee_pos"]),
@@ -20,7 +28,7 @@ def make_step_record(
             "target_pos": tuple(obs["target_pos"]),
         },
         "action": {
-            "target_ee_pos": tuple(target_ee_pos),
+            "delta_ee": tuple(delta_ee),
             "gripper_open": float(gripper_open),
         },
     }
@@ -32,11 +40,8 @@ def collect_segment(
     target_ee_pos: Tuple[float, float, float],
     gripper_open: float,
     steps: int,
-    action_repeat: int = 30,
+    action_repeat: int = 10,
 ) -> None:
-    """
-    Repeatedly apply the same action and record (obs, action) pairs.
-    """
     for _ in range(steps):
         obs = env.get_observation()
         dataset.append(make_step_record(obs, target_ee_pos, gripper_open))
@@ -54,7 +59,6 @@ def collect_one_episode(env: PickPlaceEnv) -> List[Dict[str, Any]]:
     cube_pos = obs["cube_pos"]
     target_pos = obs["target_pos"]
 
-    # same logic as your expert, but step-by-step and recordable
     above_cube = (cube_pos[0], cube_pos[1], cube_pos[2] + 0.2)
     grasp_pos = (cube_pos[0], cube_pos[1], cube_pos[2] + 0.02)
     lift_pos = (cube_pos[0], cube_pos[1], cube_pos[2] + 0.3)
@@ -62,30 +66,14 @@ def collect_one_episode(env: PickPlaceEnv) -> List[Dict[str, Any]]:
     place_pos = (target_pos[0], target_pos[1], target_pos[2] + 0.02)
     retreat_pos = (target_pos[0], target_pos[1], target_pos[2] + 0.3)
 
-    steps_multiplier = 3
-    # move above cube with open gripper
-    collect_segment(env, dataset, above_cube, gripper_open=1.0, steps=6 * steps_multiplier)
-
-    # move down to grasp
-    collect_segment(env, dataset, grasp_pos, gripper_open=1.0, steps=6 * steps_multiplier)
-
-    # close gripper while staying at grasp position
-    collect_segment(env, dataset, grasp_pos, gripper_open=0.0, steps=4 * steps_multiplier)
-
-    # lift
-    collect_segment(env, dataset, lift_pos, gripper_open=0.0, steps=6 * steps_multiplier)
-
-    # move above target
-    collect_segment(env, dataset, above_target, gripper_open=0.0, steps=6 * steps_multiplier)
-
-    # lower to place
-    collect_segment(env, dataset, place_pos, gripper_open=0.0, steps=6 * steps_multiplier)
-
-    # open gripper
-    collect_segment(env, dataset, place_pos, gripper_open=1.0, steps=4 * steps_multiplier)
-
-    # retreat
-    collect_segment(env, dataset, retreat_pos, gripper_open=1.0, steps=6 * steps_multiplier)
+    collect_segment(env, dataset, above_cube, gripper_open=1.0, steps=10)
+    collect_segment(env, dataset, grasp_pos, gripper_open=1.0, steps=10)
+    collect_segment(env, dataset, grasp_pos, gripper_open=0.0, steps=5)
+    collect_segment(env, dataset, lift_pos, gripper_open=0.0, steps=10)
+    collect_segment(env, dataset, above_target, gripper_open=0.0, steps=10)
+    collect_segment(env, dataset, place_pos, gripper_open=0.0, steps=10)
+    collect_segment(env, dataset, place_pos, gripper_open=1.0, steps=5)
+    collect_segment(env, dataset, retreat_pos, gripper_open=1.0, steps=10)
 
     return dataset
 
@@ -99,7 +87,7 @@ def main() -> None:
 
     all_demos: List[Dict[str, Any]] = []
 
-    num_episodes = 100
+    num_episodes = 200
 
     try:
         for episode_idx in range(num_episodes):
@@ -110,7 +98,7 @@ def main() -> None:
     finally:
         env.close()
 
-    output_path = os.path.join(output_dir, "demos_200eps.pkl")
+    output_path = os.path.join(output_dir, "demos_delta.pkl")
     with open(output_path, "wb") as f:
         pickle.dump(all_demos, f)
 

@@ -1,7 +1,7 @@
 import pickle
 import json
 
-with open("data/demos.pkl", "rb") as f:
+with open("data/demos_200eps.pkl", "rb") as f:
     data = pickle.load(f)
 
 # convert tuples → lists (JSON doesn't support tuples)
@@ -16,7 +16,7 @@ def convert(obj):
 
 data = convert(data)
 
-with open("data/demos.json", "w") as f:
+with open("data/demos_SM3.json", "w") as f:
     json.dump(data, f, indent=2)
 
 print("Saved to data/demos.json")
